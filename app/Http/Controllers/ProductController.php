@@ -36,7 +36,15 @@ class ProductController extends Controller
     {
         $user = Auth::user();
         $products = Cache::tags(['products', $user->id])->remember($user->getRoleNames()->join('-').'page'.$request->get('page'), now()->addMinutes(10), function () {
-            return Product::orderBy('created_at', 'desc')->paginate();
+            $user = \auth()->user();
+            $products = Product::orderBy('created_at', 'desc');
+            if ($user->hasRole('staff')) {
+                $products->select('id', 'code', 'name', 'stock');
+            } elseif ($user->hasRole('admin')) {
+                $products->select('id', 'code', 'name', 'stock', 'sell_price');
+            }
+
+            return $products->paginate();
         });
 
         return \response()->json($products);
