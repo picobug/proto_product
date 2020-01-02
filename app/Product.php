@@ -9,6 +9,7 @@ class Product extends Model
 {
     public $incrementing = false;
     protected $keyType = 'string';
+    public $fillable = ['code', 'name', 'stock', 'sell_price', 'buy_price'];
 
     public static function boot()
     {
