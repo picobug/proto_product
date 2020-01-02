@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Product;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 
 class ProductController extends Controller
 {
@@ -30,9 +32,12 @@ class ProductController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-    public function lists()
+    public function lists(Request $request)
     {
-        $products = Product::orderBy('created_at', 'desc')->paginate();
+        $user = Auth::user();
+        $products = Cache::tags(['products', $user->id])->remember($user->getRoleNames()->join('-').'page'.$request->get('page'), now()->addMinutes(10), function () {
+            return Product::orderBy('created_at', 'desc')->paginate();
+        });
 
         return \response()->json($products);
     }
@@ -44,7 +49,7 @@ class ProductController extends Controller
      */
     public function store(Request $request)
     {
-        if(Product::count() > 10000) {
+        if (Product::count() > 10000) {
             return \response()->json(['message' => 'Product is Full'], 422);
         }
         $validator = $request->validate([
@@ -55,6 +60,7 @@ class ProductController extends Controller
             'buy_price' => 'required|numeric',
         ]);
         $save = Product::create($request->all());
+        Cache::tags('products')->flush();
 
         return \response()->json(['product' => $save, 'status' => 'success']);
     }
@@ -95,6 +101,7 @@ class ProductController extends Controller
             'buy_price' => 'required|numeric',
         ]);
         $product = Product::where(['id' => $id])->update($request->all());
+        Cache::tags('products')->flush();
 
         return \response()->json(['status' => 'success', 'product' => $product]);
     }
@@ -110,6 +117,7 @@ class ProductController extends Controller
     public function destroy($id)
     {
         $product = Product::find(['id_product' => $id])->first();
+        Cache::tags('products')->flush();
 
         return \response()->json(['status' => $product->delete()]);
     }
