@@ -1,5 +1,11 @@
 <template>
     <div class="products">
+        <div v-if="message" class="alert alert-info alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close" @click="message = ''">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
         <button class="btn btn-primary" @click="modal = true">
             Tambah Barang
         </button>
@@ -17,7 +23,7 @@
             </thead>
             <tbody>
                 <tr v-for="(list, key) in lists">
-                    <td>{{ key + 1 }}</td>
+                    <td>{{ key + paginate.from }}</td>
                     <td>{{ list.code }}</td>
                     <td>{{ list.name }}</td>
                     <td>{{ list.stock }}</td>
@@ -33,6 +39,28 @@
                     </td>
                 </tr>
             </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="7">
+                        <button
+                            class="btn btn-primary"
+                            :disabled="paginate.current_page === 1"
+                            @click="callPrev"
+                        >
+                            Prev
+                        </button>
+                        <button
+                            class="btn btn-primary float-right"
+                            :disabled="
+                                paginate.current_page === paginate.last_page
+                            "
+                            @click="callNext"
+                        >
+                            Next
+                        </button>
+                    </td>
+                </tr>
+            </tfoot>
         </table>
         <app-form
             :form="form"
@@ -57,8 +85,15 @@ export default {
             edit: false,
             modal: false,
             lists: [],
+            paginate: {
+                current_page: 1,
+                from: 1,
+                last_page: 1,
+                per_page: 1
+            },
+            message: '',
             roles: [],
-            error: ''
+            error: ""
         };
     },
     computed: {
@@ -89,6 +124,22 @@ export default {
         this.getRoles();
     },
     methods: {
+        callPrev() {
+            this.$set(
+                this.paginate,
+                "current_page",
+                this.paginate.current_page - 1
+            );
+            this.getProducts();
+        },
+        callNext() {
+            this.$set(
+                this.paginate,
+                "current_page",
+                this.paginate.current_page + 1
+            );
+            this.getProducts();
+        },
         async getRoles() {
             try {
                 let r = await axios.get("/api/user");
@@ -97,8 +148,17 @@ export default {
         },
         async getProducts() {
             try {
-                let r = await axios.get("/api/products");
-                this.lists = r.data.data;
+                let r = await axios.get("/api/products", {
+                    params: {
+                        page: this.paginate.current_page
+                    }
+                });
+                let data = r.data;
+                this.lists = data.data;
+                this.$set(this.paginate, "current_page", data.current_page);
+                this.$set(this.paginate, "from", data.from);
+                this.$set(this.paginate, "last_page", data.last_page);
+                this.$set(this.paginate, "per_page", data.per_page);
             } catch (err) {}
             this.form = {};
             this.modal = false;
@@ -109,8 +169,15 @@ export default {
             try {
                 if (form.id) {
                     let r = await axios.post(`/api/products/${form.id}`, form);
+                    this.message = `Produk ${form.name} berhasil di perbaharui`
                 } else {
                     let r = await axios.post("/api/products", form);
+                    this.message = `Produk ${form.name} berhasil di buat`
+                    this.paginate = {
+                        current_page: 1,
+                        from: 1,
+                        last_page: 1
+                    };
                 }
                 this.getProducts();
             } catch (err) {
@@ -127,8 +194,17 @@ export default {
             if (status) {
                 try {
                     let r = await axios.delete(`/api/products/${list.id}`);
+                    this.paginate = {
+                        current_page: 1,
+                        from: 1,
+                        last_page: 1,
+                        per_page: 1
+                    };
+                    this.message = `Produk ${list.name} berhasil di hapus`
                     this.getProducts();
-                } catch (err) {}
+                } catch (err) {
+                    this.message = `Produk ${list.name} gagal di hapus`
+                }
             }
         }
     }

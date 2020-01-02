@@ -32,7 +32,7 @@ class ProductController extends Controller
      */
     public function lists()
     {
-        $products = Product::paginate();
+        $products = Product::orderBy('created_at', 'desc')->paginate();
 
         return \response()->json($products);
     }
@@ -88,7 +88,7 @@ class ProductController extends Controller
     public function update(Request $request, $id)
     {
         $validator = $request->validate([
-            'code' => 'required|unique:products',
+            'code' => 'required|unique:products,code,'.$id,
             'name' => 'required',
             'stock' => 'required|numeric',
             'sell_price' => 'required|numeric',
